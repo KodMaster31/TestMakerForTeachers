@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Profesyonel Test Hazırlayıcı</title>
+    <style>
+        /* --- TEMEL AYARLAR --- */
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; background-color: #eef2f3; }
+        
+        /* SOL PANEL (EDİTÖR) */
+        #editor-panel {
+            width: 420px; background: #2c3e50; color: #ecf0f1; padding: 20px; 
+            overflow-y: auto; display: flex; flex-direction: column; gap: 15px; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.3); z-index: 100;
+        }
+
+        /* SAĞ PANEL (ÖNİZLEME) */
+        #preview-panel {
+            flex: 1; padding: 40px; overflow-y: auto; background: #636e72; 
+            display: flex; justify-content: center;
+        }
+
+        /* KAĞIT TASARIMI */
+        #paper {
+            background: white; width: 210mm; min-height: 297mm; padding: 20mm; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); box-sizing: border-box; position: relative;
+        }
+
+        /* --- EDİTÖR BİLEŞENLERİ --- */
+        .control-group { background: #34495e; padding: 12px; border-radius: 6px; }
+        .control-group label { display: block; font-size: 0.8em; margin-bottom: 4px; color: #bdc3c7; }
+        input[type="text"], textarea, select { 
+            width: 100%; padding: 8px; border: none; border-radius: 4px; 
+            box-sizing: border-box; font-family: inherit; margin-bottom: 5px;
+        }
+        .btn { border: none; padding: 10px; cursor: pointer; border-radius: 4px; font-weight: bold; width: 100%; transition: 0.2s; }
+        .btn-add { background: #27ae60; color: white; } .btn-add:hover { background: #2ecc71; }
+        .btn-del { background: #c0392b; color: white; width: auto; font-size: 12px; padding: 5px 10px; }
+        .btn-print { background: #f39c12; color: white; font-size: 1.1em; margin-top: 10px; }
+
+        .q-card { background: #ecf0f1; color: #2c3e50; padding: 15px; border-radius: 6px; border-left: 5px solid #3498db; position: relative; }
+        .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; }
+        
+        /* --- SINAV KAĞIDI STİLLERİ --- */
+        .exam-header { border: 2px solid #000; padding: 10px; margin-bottom: 20px; }
+        .header-tbl { width: 100%; border-collapse: collapse; }
+        .header-tbl td { border: 1px solid #000; padding: 5px; font-weight: bold; font-size: 14px; }
+        .main-title { text-align: center; font-size: 20px; font-weight: bold; text-transform: uppercase; border-bottom: 3px double #000; margin: 15px 0; padding-bottom: 5px; }
+
+        /* Soru Alanları */
+        .q-row { margin-bottom: 15px; position: relative; padding-bottom: 5px; page-break-inside: avoid; }
+        .q-num { font-weight: bold; float: left; margin-right: 5px; }
+        
+        /* Şıklar */
+        .opts { display: flex; flex-wrap: wrap; margin-left: 20px; justify-content: space-between; }
+        .opts span { min-width: 23%; margin-bottom: 5px; }
+
+        /* Tablolar */
+        .std-table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 14px; }
+        .std-table th, .std-table td { border: 1px solid #000; padding: 5px; text-align: center; }
+        .std-table th { background-color: #eee; }
+
+        /* Diyalog */
+        .dialogue-line { margin-bottom: 5px; }
+        .dialogue-speaker { font-weight: bold; min-width: 60px; display: inline-block; }
+
+        /* Okuma Parçası */
+        .reading-box { border: 1px solid #000; padding: 10px; background: #fafafa; margin-bottom: 10px; font-size: 0.95em; text-align: justify; }
+
+        /* --- İNTERAKTİF RESİM (RESIZE & DRAG) --- */
+        .img-wrapper {
+            display: inline-block;
+            position: relative;
+            cursor: move; /* Taşıma ikonu */
+            border: 1px dashed transparent; /* Normalde görünmez */
+            user-select: none;
+        }
+        .img-wrapper:hover { border: 1px dashed #3498db; } /* Üzerine gelince belli et */
+        
+        .resizer {
+            width: 10px; height: 10px; background: #3498db; position: absolute;
+            right: 0; bottom: 0; cursor: se-resize; display: none;
+        }
+        .img-wrapper:hover .resizer { display: block; }
+        
+        .q-img { display: block; width: 100%; height: auto; pointer-events: none; } /* Resmin kendisi event çalmasın */
+
+        /* --- YAZDIRMA AYARLARI --- */
+        @media print {
+            body { background: white; height: auto; overflow: visible; }
+            #editor-panel { display: none; }
+            #preview-panel { padding: 0; overflow: visible; background: white; }
+            #paper { width: 100%; box-shadow: none; padding: 0; margin: 0; }
+            
+            /* Renkleri ve Sınırları Zorla */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            table, th, td { border: 1px solid #000 !important; }
+            .std-table th { background-color: #ddd !important; }
+            .reading-box { background-color: #fafafa !important; }
+
+            /* Yardımcı elemanları gizle */
+            .img-wrapper { border: none !important; cursor: default; }
+            .resizer { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="editor-panel">
+        <h2 style="margin:0;">📝 Test Hazırlayıcı v2</h2>
+        <div class="control-group">
+            <label>Okul / Başlık</label>
+            <textarea id="schoolName" rows="2" oninput="updateHeader()">2024-2025 SCHOOL YEAR&#13;&#10;ENGLISH EXAM</textarea>
+            <label>Ders / Ünite</label>
+            <input type="text" id="examSubject" value="UNIT 1: FRIENDSHIP" oninput="updateHeader()">
+        </div>
+
+        <div style="border-top:1px solid #555;"></div>
+
+        <label>Soru Tipi Seç ve Ekle:</label>
+        <div style="display:flex; gap:5px;">
+            <select id="qTypeSelector">
+                <option value="multichoice">1. Çoktan Seçmeli (Test)</option>
+                <option value="classic">2. Klasik Soru</option>
+                <option value="truefalse">3. Doğru/Yanlış Tablosu</option>
+                <option value="matching">4. Eşleştirme</option>
+                <option value="gapfill">5. Boşluk Doldurma (Kutu)</option>
+                <option value="reading">6. Okuma Parçası (Reading)</option>
+                <option value="dialogue">7. Diyalog Tamamlama</option>
+                <option value="categorize">8. Kategorize Etme</option>
+                <option value="unscramble">9. Cümle Sıralama</option>
+            </select>
+            <button class="btn btn-add" style="width:70px;" onclick="addQuestion()">EKLE</button>
+        </div>
+
+        <div id="questions-list"></div>
+        
+        <button class="btn btn-print" onclick="window.print()">🖨️ YAZDIR</button>
+        <div style="font-size:11px; text-align:center; color:#bdc3c7; margin-top:5px;">
+            Not: Resimleri kağıt üzerinde tutup sürükleyebilirsiniz.
+        </div>
+    </div>
+
+    <div id="preview-panel">
+        <div id="paper">
+            <div class="exam-header">
+                <table class="header-tbl">
+                    <tr>
+                        <td rowspan="2" style="width:60%; text-align:center;" id="disp-schoolName">...</td>
+                        <td>NAME SURNAME:</td>
+                    </tr>
+                    <tr><td>CLASS / NUMBER:</td></tr>
+                </table>
+            </div>
+            <div class="main-title" id="disp-subject">...</div>
+            <div id="exam-body"></div>
+            <div style="text-align:center; margin-top:30px; border-top:1px dashed #000; padding-top:10px;">GOOD LUCK!</div>
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateHeader();
+            // Varsayılan bir soru ekle
+            addQuestion('reading'); 
+        });
+
+        function updateHeader() {
+            document.getElementById('disp-schoolName').innerText = document.getElementById('schoolName').value;
+            document.getElementById('disp-subject').innerText = document.getElementById('examSubject').value;
+        }
+
+        // --- SORU EKLEME MANTIĞI ---
+        function addQuestion(forcedType = null) {
+            const type = forcedType || document.getElementById('qTypeSelector').value;
+            const id = Date.now();
+            
+            // Temel obje
+            let q = { 
+                id: id, type: type, text: '', 
+                imgData: null, 
+                imgProps: { width: 150, x: 0, y: 0 } // Resim pozisyonu ve boyutu
+            };
+
+            // Tipe özel veriler
+            if(type === 'multichoice') {
+                q.text = 'Choose the correct option.';
+                q.options = {a: '', b: '', c: '', d: ''};
+            } else if(type === 'classic') {
+                q.text = 'Answer the question.';
+            } else if(type === 'truefalse') {
+                q.text = 'Mark sentences as True (T) or False (F).';
+                q.rows = ["Sentence 1", "Sentence 2"];
+            } else if(type === 'matching') {
+                q.text = 'Match the words.';
+                q.pairs = [{l:'Apple', r:'Fruit'}, {l:'Dog', r:'Animal'}];
+            } else if(type === 'gapfill') {
+                q.text = 'Fill in the blanks.';
+                q.words = "go / play / swim";
+                q.content = "1. I ____ to school.\n2. We ____ football.";
+            } else if(type === 'reading') {
+                q.text = 'Read the text and answer the questions.';
+                q.passageTitle = "MY DAILY ROUTINE";
+                q.passageText = "Hello, I am Ali. I get up at 7 o'clock...";
+                q.subQuestions = ["What time does Ali get up?", "Does he have breakfast?"];
+            } else if(type === 'dialogue') {
+                q.text = 'Complete the dialogue.';
+                q.lines = [{speaker:'Tom', text:'Hello, how are you?'}, {speaker:'Sue', text:'_______, thanks.'}];
+            } else if(type === 'categorize') {
+                q.text = 'Put the words into correct categories.';
+                q.cats = [{name:'Fruits', items:''}, {name:'Vegetables', items:''}];
+                q.wordList = "Apple, Carrot, Banana, Leek";
+            } else if(type === 'unscramble') {
+                q.text = 'Put the words in correct order.';
+                q.items = ["is / name / My / Ali", "you / How / are"];
+            }
+
+            questions.push(q);
+            renderAll();
+        }
+
+        // --- EDİTÖR GÜNCELLEMELERİ ---
+        function updateQ(id, key, val) { questions.find(x=>x.id==id)[key] = val; renderPreview(); }
+        function updateDeep(id, pKey, key, val) { questions.find(x=>x.id==id)[pKey][key] = val; renderPreview(); }
+        function deleteQ(id) { if(confirm('Silinsin mi?')) { questions = questions.filter(x=>x.id!==id); renderAll(); } }
+
+        // --- RESİM YÜKLEME ---
+        function handleImg(input, id) {
+            if(input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const q = questions.find(x=>x.id==id);
+                    q.imgData = e.target.result;
+                    renderAll();
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        function removeImg(id) { questions.find(x=>x.id==id).imgData = null; renderAll(); }
+
+        // --- RENDER (Ekrana Basma) ---
+        function renderAll() {
+            renderEditor();
+            renderPreview();
+        }
+
+        function renderEditor() {
+            const list = document.getElementById('questions-list');
+            list.innerHTML = '';
+            
+            questions.forEach((q, i) => {
+                let extraHtml = '';
+                
+                // Tipe özel inputlar
+                if(q.type === 'multichoice') {
+                    extraHtml = `
+                        <input type="text" placeholder="A)" value="${q.options.a}" oninput="updateDeep(${q.id},'options','a',this.value)">
+                        <input type="text" placeholder="B)" value="${q.options.b}" oninput="updateDeep(${q.id},'options','b',this.value)">
+                        <input type="text" placeholder="C)" value="${q.options.c}" oninput="updateDeep(${q.id},'options','c',this.value)">
+                        <input type="text" placeholder="D)" value="${q.options.d}" oninput="updateDeep(${q.id},'options','d',this.value)">`;
+                } else if(q.type === 'reading') {
+                    extraHtml = `
+                        <input type="text" placeholder="Başlık" value="${q.passageTitle}" oninput="updateQ(${q.id},'passageTitle',this.value)">
+                        <textarea rows="4" placeholder="Metin" oninput="updateQ(${q.id},'passageText',this.value)">${q.passageText}</textarea>
+                        <small>Sorular (Her satıra bir soru):</small>
+                        <textarea rows="3" oninput="questions.find(x=>x.id==${q.id}).subQuestions=this.value.split('\\n'); renderPreview();">${q.subQuestions.join('\n')}</textarea>`;
+                } else if(q.type === 'gapfill') {
+                    extraHtml = `
+                        <input type="text" value="${q.words}" placeholder="Kelimeler ( / ile ayır)" oninput="updateQ(${q.id},'words',this.value)">
+                        <textarea rows="3" oninput="updateQ(${q.id},'content',this.value)">${q.content}</textarea>`;
+                } else if(q.type === 'categorize') {
+                    extraHtml = `<input type="text" value="${q.wordList}" oninput="updateQ(${q.id},'wordList',this.value)">
+                    <div style="display:flex; gap:5px;">
+                        <input type="text" value="${q.cats[0].name}" placeholder="Kat 1" oninput="questions.find(x=>x.id==${q.id}).cats[0].name=this.value; renderPreview();">
+                        <input type="text" value="${q.cats[1].name}" placeholder="Kat 2" oninput="questions.find(x=>x.id==${q.id}).cats[1].name=this.value; renderPreview();">
+                    </div>`;
+                } else if(q.type === 'unscramble') {
+                    extraHtml = `<textarea rows="3" placeholder="Her satıra bir cümle" oninput="questions.find(x=>x.id==${q.id}).items=this.value.split('\\n'); renderPreview();">${q.items.join('\n')}</textarea>`;
+                } else if(q.type === 'dialogue') {
+                    extraHtml = `<small>Format: İsim:Konuşma (Her satır yeni konuşma)</small>
+                    <textarea rows="3" oninput="parseDialogue(${q.id}, this.value)">${q.lines.map(l=>l.speaker+':'+l.text).join('\n')}</textarea>`;
+                }
+
+                // Kart Yapısı
+                const div = document.createElement('div');
+                div.className = 'q-card';
+                div.innerHTML = `
+                    <div class="q-header">
+                        <strong>${i+1}. ${q.type.toUpperCase()}</strong>
+                        <button class="btn btn-del" onclick="deleteQ(${q.id})">SİL</button>
+                    </div>
+                    <label>Soru Metni:</label>
+                    <textarea rows="2" oninput="updateQ(${q.id},'text',this.value)">${q.text}</textarea>
+                    
+                    <div style="background:#dfe6e9; padding:5px; margin:5px 0;">
+                        ${q.imgData ? 
+                            `<button class="btn btn-del" onclick="removeImg(${q.id})">Resmi Kaldır</button>` : 
+                            `<input type="file" onchange="handleImg(this, ${q.id})">`}
+                    </div>
+                    
+                    ${extraHtml}
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function parseDialogue(id, text) {
+            const lines = text.split('\n').map(l => {
+                const parts = l.split(':');
+                return { speaker: parts[0] || '?', text: parts[1] || '' };
+            });
+            questions.find(x=>x.id==id).lines = lines;
+            renderPreview();
+        }
+
+        function renderPreview() {
+            const body = document.getElementById('exam-body');
+            body.innerHTML = '';
+
+            questions.forEach((q, i) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'q-row';
+
+                // --- RESİM RENDER (Sürüklenebilir) ---
+                let imgHtml = '';
+                if(q.imgData) {
+                    // Resim için özel container oluşturuyoruz
+                    // transform translate kullanarak pozisyon veriyoruz
+                    const style = `width:${q.imgProps.width}px; transform: translate(${q.imgProps.x}px, ${q.imgProps.y}px);`;
+                    
+                    imgHtml = `
+                    <div class="img-wrapper" id="img-${q.id}" style="${style}" onmousedown="initDrag(event, ${q.id})">
+                        <img src="${q.imgData}" class="q-img">
+                        <div class="resizer" onmousedown="initResize(event, ${q.id})"></div>
+                    </div>`;
+                }
+
+                let content = `<div style="clear:both;"></div><div><span class="q-num">${i+1}.</span> ${q.text}</div>`;
+                
+                // Resim HTML'i soru metninden hemen sonraya, içerikten önceye koyalım
+                content += imgHtml; 
+                content += '<div style="margin-top:10px;">'; // İçerik başlangıcı
+
+                // TİPLER
+                if(q.type === 'multichoice') {
+                    content += `<div class="opts">
+                        <span>A) ${q.options.a}</span> <span>B) ${q.options.b}</span>
+                        <span>C) ${q.options.c}</span> <span>D) ${q.options.d}</span>
+                    </div>`;
+                } else if(q.type === 'classic') {
+                    content += `<div style="border-bottom:1px solid #000; height:25px; margin-top:5px;"></div><div style="border-bottom:1px solid #000; height:25px; margin-top:5px;"></div>`;
+                } else if(q.type === 'truefalse') {
+                    content += `<table class="std-table"><tr><th>Sentences</th><th width="40">T</th><th width="40">F</th></tr>`;
+                    q.rows.forEach(r => content += `<tr><td style="text-align:left;">${r}</td><td></td><td></td></tr>`);
+                    content += `</table>`;
+                } else if(q.type === 'matching') {
+                    content += `<div style="display:flex; justify-content:space-between; padding:0 20px;"><div>`;
+                    q.pairs.forEach(p=> content += `<div>${p.l} ( )</div>`);
+                    content += `</div><div>`;
+                    q.pairs.forEach(p=> content += `<div>${p.r}</div>`);
+                    content += `</div></div>`;
+                } else if(q.type === 'gapfill') {
+                    content += `<div style="border:1px solid #000; padding:5px; text-align:center; font-weight:bold; margin-bottom:10px;">${q.words}</div>`;
+                    content += `<div style="white-space:pre-wrap; line-height:1.6;">${q.content}</div>`;
+                } else if(q.type === 'reading') {
+                    content += `<div class="reading-box"><center><b>${q.passageTitle}</b></center><br>${q.passageText}</div>`;
+                    q.subQuestions.forEach((sq, k) => content += `<div>${String.fromCharCode(97+k)}) ${sq}</div><div style="border-bottom:1px dotted #000; height:20px; margin-bottom:5px;"></div>`);
+                } else if(q.type === 'dialogue') {
+                    q.lines.forEach(line => content += `<div class="dialogue-line"><span class="dialogue-speaker">${line.speaker}:</span> ${line.text}</div>`);
+                } else if(q.type === 'categorize') {
+                    content += `<div style="text-align:center; margin-bottom:5px;"><i>(${q.wordList})</i></div>`;
+                    content += `<table class="std-table"><tr>`;
+                    q.cats.forEach(c => content += `<th>${c.name}</th>`);
+                    content += `</tr><tr>`;
+                    q.cats.forEach(c => content += `<td height="80" valign="top"></td>`);
+                    content += `</tr></table>`;
+                } else if(q.type === 'unscramble') {
+                    q.items.forEach(item => content += `<div style="margin-bottom:8px;">${item}<br>_________________________________________</div>`);
+                }
+
+                content += '</div>'; // İçerik sonu
+                wrapper.innerHTML = content;
+                body.appendChild(wrapper);
+            });
+        }
+
+        // --- INTERACTIVE DRAG & RESIZE (Zor Kısım) ---
+        let activeQId = null;
+        let startX, startY, startWidth, startImgX, startImgY;
+
+        function initDrag(e, id) {
+            e.preventDefault();
+            e.stopPropagation(); // Resize tetiklenmesin diye
+            activeQId = id;
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            const q = questions.find(x=>x.id==id);
+            startImgX = q.imgProps.x;
+            startImgY = q.imgProps.y;
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+
+        function doDrag(e) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            const q = questions.find(x=>x.id==activeQId);
+            q.imgProps.x = startImgX + dx;
+            q.imgProps.y = startImgY + dy;
+            
+            // Sadece ilgili elementi güncelle (Tüm sayfayı render etme)
+            const wrapper = document.getElementById('img-'+activeQId);
+            wrapper.style.transform = `translate(${q.imgProps.x}px, ${q.imgProps.y}px)`;
+        }
+
+        function stopDrag() {
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('mouseup', stopDrag);
+            activeQId = null;
+        }
+
+        function initResize(e, id) {
+            e.preventDefault();
+            e.stopPropagation(); // Drag tetiklenmesin
+            activeQId = id;
+            startX = e.clientX;
+            const q = questions.find(x=>x.id==id);
+            startWidth = q.imgProps.width;
+
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('mouseup', stopResize);
+        }
+
+        function doResize(e) {
+            const dx = e.clientX - startX;
+            const q = questions.find(x=>x.id==activeQId);
+            const newW = startWidth + dx;
+            if(newW > 50) { // Min genişlik
+                q.imgProps.width = newW;
+                const wrapper = document.getElementById('img-'+activeQId);
+                wrapper.style.width = newW + 'px';
+            }
+        }
+
+        function stopResize() {
+            document.removeEventListener('mousemove', doResize);
+            document.removeEventListener('mouseup', stopResize);
+            activeQId = null;
+        }
+
+    </script>
+</body>
+</html>
